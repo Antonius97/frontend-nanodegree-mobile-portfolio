@@ -496,17 +496,48 @@ function logAverageFrame(times) {   // times is the array of User Timing measure
 // The following code for sliding background pizzas was pulled from Ilya's demo found at:
 // https://www.igvita.com/slides/2012/devtools-tips-and-tricks/jank-demo.html
 
+
+const pizzasCanvas = document.getElementById("pizzasCanvas");
+const ctx = pizzasCanvas.getContext("2d");
+
+const canvasWidth = pizzasCanvas.width;
+const canvasHeight = pizzasCanvas.height;
+
+let animValue = 0;
 // Moves the sliding background pizzas based on scroll position
-function updatePositions() {
+function paintPizzas() {
   frame++;
   window.performance.mark("mark_start_frame");
 
-  var items = document.querySelectorAll('.mover');
-  for (var i = 0; i < items.length; i++) {
-    // document.body.scrollTop is no longer supported in Chrome.
-    var scrollTop = document.documentElement.scrollTop || document.body.scrollTop;
-    var phase = Math.sin((scrollTop / 1250) + (i % 5));
-    items[i].style.left = items[i].basicLeft + 100 * phase + 'px';
+  const scrollTop = window.scrollY;
+
+  const delta = animValue + scrollTop;
+
+  var cols = 14;
+  var s = 256;
+  var pizzasCount = 700;
+
+  const image = document.createElement("img");
+  image.src = "images/pizza-min.png";
+
+  ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+
+  for (var i = 0; i < pizzasCount; i++) {
+    var phaseX = Math.sin((delta / 1250) + (i % 5));
+    var phaseY = Math.cos((delta / 1250) + (i % 5));
+
+    
+    let sx = 0; 
+    let sy = 0; 
+    let sWidth = 230; 
+    let sHeight = 230;
+    let dx = (i % cols) * s + 100 * phaseX;
+    let dy = (Math.floor(i / cols) * s) + 100 * phaseY;
+    let dWidth = 70; 
+    let dHeight = 70;
+
+
+    ctx.drawImage(image, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight);
   }
 
   // User Timing API to the rescue again. Seriously, it's worth learning.
@@ -520,21 +551,29 @@ function updatePositions() {
 }
 
 // runs updatePositions on scroll
-window.addEventListener('scroll', updatePositions);
+window.addEventListener('scroll', paintPizzas);
 
 // Generates the sliding pizzas when the page loads.
-document.addEventListener('DOMContentLoaded', function() {
-  var cols = 8;
-  var s = 256;
-  for (var i = 0; i < 200; i++) {
-    var elem = document.createElement('img');
-    elem.className = 'mover';
-    elem.src = "images/pizza.png";
-    elem.style.height = "100px";
-    elem.style.width = "73.333px";
-    elem.basicLeft = (i % cols) * s;
-    elem.style.top = (Math.floor(i / cols) * s) + 'px';
-    document.querySelector("#movingPizzas1").appendChild(elem);
+document.addEventListener('DOMContentLoaded', paintPizzas);
+
+
+
+const FPS = 60;
+const timeBetweenFrames = 1000 / FPS;
+
+
+let start;
+function paintLoop(timestamp) {
+  if (start === undefined)
+    start = timestamp;
+  const elapsed = timestamp - start;
+
+  if (elapsed >= timeBetweenFrames) {
+    animValue += 5;
+    paintPizzas();
   }
-  updatePositions();
-});
+
+  requestAnimationFrame(paintLoop);
+}
+
+requestAnimationFrame(paintLoop);
